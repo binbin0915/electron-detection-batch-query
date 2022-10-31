@@ -1,0 +1,35 @@
+@import '~antd/dist/antd.css';
+
+.page {
+  padding: 20px;
+}
+
+.btn-area {
+  margin: 20px 0;
+}
+
+.excel-info {
+  margin: 20px 0;
+}
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-area-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cookie-input-bar-wrapper {
+  margin: 20px 0;
+}
+
+.cookie-input-bar {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+}
