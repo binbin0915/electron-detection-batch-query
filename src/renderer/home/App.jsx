@@ -19,7 +19,20 @@ class App extends React.Component {
       test: '',
       updateCookie: false,
       cookie: '',
-      loginCookie: ''
+      loginCookie: '',
+      notResultArr: [],
+      notResultArrHead: [
+        {
+          title: '证件号码',
+          dataIndex: '证件号码',
+          key: '证件号码',
+        }, 
+        {
+          title: '电话号码',
+          dataIndex: '电话号码',
+          key: '电话号码',
+        }
+      ]
     }
   }
 
@@ -52,12 +65,20 @@ class App extends React.Component {
         loadingTable: true
       })
       const { electronAPI } = window
-      const res = await electronAPI.search() || []
+      const res = await electronAPI.search() || {}
+      let {excelArr = [], notResultArr = []} = res
       console.log('batch query res', res)
+
+      notResultArr = notResultArr.map(item => {
+        return {
+          '证件号码': item[0],
+          '电话号码': item[1]
+        }
+      })
   
       // const {head = [], data = []} = res
-      const head = res.shift() || []
-      const data = res
+      const head = excelArr.shift() || []
+      const data = excelArr
   
       console.log('batch query split', {head, data})
   
@@ -69,7 +90,7 @@ class App extends React.Component {
         }
       })
   
-      const dataSource = data.map((itemArr, i) => {
+      let dataSource = data.map((itemArr, i) => {
         const obj = {}
         itemArr.forEach((item, j) => {
           obj[head[j]] = item
@@ -78,15 +99,29 @@ class App extends React.Component {
         return obj
       })
 
+      // 去重
+      let clearDuplicate = (arr, key) => Array.from(new Set(arr.map(e => e[key]))).map(e => arr.findIndex(x => x[key] == e)).map(e => arr[e])
+      dataSource = clearDuplicate(dataSource, '证件号码')
+
       // filter column
       const filterArr = ['姓名', '证件号码', '电话号码', '采样时间', '检测时间', '检测结果']
 
       columns = columns.filter(item => filterArr.includes(item.title))
+
+      // 筛选列数据
+      dataSource = dataSource.map(item => {
+        let obj = {}
+        filterArr.forEach(key => {
+          obj[key] = item[key]
+        })
+        return obj
+      })
   
       console.log({columns, dataSource})
       this.setState({
         columns,
-        dataSource
+        dataSource,
+        notResultArr
       }, () => {
         this.setState({
           loadingTable: false,
@@ -115,14 +150,26 @@ class App extends React.Component {
   }
 
   exportExcel = async () => {
+    const {columns, dataSource} = this.state
+    let head = []
+    columns.forEach(item => {
+      head.push(item.title)
+    })
+    const excelArr = [head]
+    dataSource.forEach(item => {
+      let data = []
+      for (const key in item) {
+        data.push(item[key])
+      }
+      excelArr.push(data)
+    })
+    console.log('excelArr', excelArr)
     const { electronAPI } = window
-    const res = await electronAPI.exportExcel()
-    console.log('exportExcel res', res)
-    if(res === 1) {
+    const res = await electronAPI.exportExcel(excelArr).then(res => {
       message.success('导出成功，请在电脑桌面查看【查询结果.xlsx】文件')
-    }else {
-      message.error('导出失败')
-    }
+    }).catch(err => {
+      message.error('导出失败。' + err)
+    })
   }
 
   toggleCookieBox = () => {
@@ -157,7 +204,7 @@ class App extends React.Component {
   }
 
   render() {
-    const {dataSource, columns, excelData, loadingTable, searchOk, updateCookie} = this.state
+    const {dataSource, columns, excelData, loadingTable, searchOk, updateCookie, notResultArr, notResultArrHead} = this.state
     console.log('render', {columns, dataSource})
     return <div className="page">
       <div className="title-bar">
@@ -204,6 +251,27 @@ class App extends React.Component {
         pagination={
           {
             total: dataSource.length,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSize: 10,
+            showTotal: total => `总共 ${total} 条`
+          }
+        } />
+      }
+
+
+      {
+        notResultArr.length > 0 &&
+        <div style={{margin: '20px 0'}}>
+          <h2>以下人员信息未查询到结果，请手动查询确认</h2>
+        </div>
+      }
+      {
+        notResultArr.length > 0 &&
+        <Table dataSource={notResultArr} columns={notResultArrHead}
+        pagination={
+          {
+            total: notResultArr.length,
             showSizeChanger: true,
             showQuickJumper: true,
             pageSize: 10,

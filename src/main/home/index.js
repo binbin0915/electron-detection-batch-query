@@ -81,12 +81,10 @@ async function batchQuery() {
     console.log('查询中，请稍候...')
     const {idNumArr, phoneArr} = state.excelData
     const tableHTMLArr = []
+    const notResultArr = []
     for(let i = 0; i < idNumArr.length; i++) {
       let res = await search({identityNumber: idNumArr[i], loginCookie: state.loginCookie})
-      // console.log('=================>search2 ', res)
       let tableHtml = getTableStr(res)
-
-      // console.log('tableHtml=====================', tableHtml)
 
       const $ = cheerio.load(tableHtml);
       const tds = $('#reportTable').find('td')
@@ -96,6 +94,12 @@ async function batchQuery() {
         if (phoneNum) {
           res = await search({phoneNumber: phoneNum, loginCookie: state.loginCookie})
           tableHtml = getTableStr(res)
+          const $ = cheerio.load(tableHtml);
+          const tds = $('#reportTable').find('td')
+          // 手机号码也没查到数据
+          if(tds.length === 0) {
+            notResultArr.push([idNumArr[i], phoneNum])
+          }
         }
       }
       tableHTMLArr.push(tableHtml)
@@ -108,12 +112,15 @@ async function batchQuery() {
         excelArr.push([...arrObj.head])
       }
 
-      const data = arrObj.data || []
+      let data = arrObj.data || []
+      // 数据去重
+      // let clearDuplicate = (arr, key) => Array.from(new Set(arr.map(e => e[key]))).map(e => arr.findIndex(x => x[key] == e)).map(e => arr[e])
+      // data = clearDuplicate(data, '证件号码')
       data.forEach(item => {
         excelArr.push(item)
       })
     })
-    return excelArr
+    return {excelArr, notResultArr}
     // writeExcel(excelArr)
   } catch (error) {
     console.error('查询中失败，请重试', error)
@@ -155,7 +162,8 @@ function registerEvent() {
   ipcMain.handle('request:search', async () => {
     console.log('ipcMain search', state.excelData)
     const res = await batchQuery()
-    state.excelArr = res
+    state.excelArr = res.excelArr
+    state.notResultArr = res.notResultArr
     // console.log('===========> ipcMain search', res)
     return res
   })
@@ -177,9 +185,9 @@ function registerEvent() {
     }
   })
 
-  ipcMain.handle('file:exportExcel', async () => {
-    console.log('ipcMain exportExcel')
-    return await writeExcel(state.excelArr)
+  ipcMain.on('file:exportExcel', async (event, val) => {
+    console.log('ipcMain exportExcel', val)
+    return await writeExcel(val)
   })
 
   ipcMain.on('login:cookie', async (event, val) => {

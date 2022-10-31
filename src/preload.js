@@ -10,8 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI',{
   readExcel: async () => {
     return ipcRenderer.invoke('file:readExcel')
   },
-  exportExcel: async () => {
-    return ipcRenderer.invoke('file:exportExcel')
+  exportExcel: async (val) => {
+    return await ipcRenderer.send('file:exportExcel', val)
   },
   updateCookie: async (val) => {
     return ipcRenderer.send('login:cookie', val)
