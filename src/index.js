@@ -1,11 +1,7 @@
 const {mainHome} = require("./main/home");
 
-const {app, BrowserWindow, ipcMain, Menu} = require('electron');
-const React = require('react');
+const {app, BrowserWindow, Menu} = require('electron');
 const path = require('path');
-
-console.log('React.version', React.version);
-
 
 let win = null;
 function createWindow(filePath = "./dist/index.html") {
@@ -24,12 +20,9 @@ function createWindow(filePath = "./dist/index.html") {
 
 app.whenReady().then(() => {
   mainHome.init();
-  console.log('app ready');
   // 打开多个窗口
   // createWindow("http://localhost:3000/");
   const path = (__dirname + '').replace('src', 'dist/index.html')
-  console.log('load file', path)
   createWindow(path);
   // Menu.setApplicationMenu(null)
-
 })

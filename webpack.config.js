@@ -7,11 +7,8 @@ module.exports = {
   // target: "electron-renderer",
   // 多入口文件
   entry: {
-    // index: "./src/renderer/index.ts",
     home: "./src/renderer/home/index.jsx",
-    // about: "./src/renderer/about/index.tsx",
   },
-  // entry: "./src/renderer/home/index.tsx",
   output: {
     filename: "[name].[hash:8].bundle.js",
     path: path.resolve(__dirname, "./dist")
@@ -32,22 +29,11 @@ module.exports = {
 
   plugins: [
     new CleanWebpackPlugin(),
-    // 多个模板
-    // new HtmlWebpackPlugin({
-    //   template: "./public/index.html",
-    //   filename: "index-temp.html",
-    //   chunks: ['index']
-    // }),
     new HtmlWebpackPlugin({
       template: "./src/renderer/home/index.html",
       filename: "index.html",
       chunks: ['home']
-    }),
-    // new HtmlWebpackPlugin({
-    //   template: "./src/renderer/about/index.html",
-    //   filename: "about.html",
-    //   chunks: ['about']
-    // }),
+    })
   ],
 
   resolve: {
@@ -55,7 +41,6 @@ module.exports = {
   },
 
   devServer: {
-    // hot: false,
     port: 3000,
   },
 

@@ -6,22 +6,19 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      msg: '',
-      count: 0,
-      dataSource: [],
-      columns: [],
-      excelData: {
+      dataSource: [], // 表格数据源
+      columns: [], // 表格表头
+      excelData: { // 要导出的excel数据
         phoneArr: [],
         idNumArr: []
       },
-      loadingTable: false,
-      searchOk: false,
-      test: '',
-      updateCookie: false,
-      cookie: '',
-      loginCookie: '',
-      notResultArr: [],
-      notResultArrHead: [
+      loadingTable: false, // table加载状态
+      searchOk: false, // 查询是否成功
+      updateCookie: false, // 收是否显示更新cookie的输入框
+      cookie: '', // 输入时保存输入的cookie
+      loginCookie: '', // 保存输入的cookie
+      notResultArr: [], // 未查询到核酸的信息
+      notResultArrHead: [ // 未查询到核酸的表头信息
         {
           title: '证件号码',
           dataIndex: '证件号码',
@@ -37,22 +34,26 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-      // this.query()
-      const loginCookie = localStorage.getItem('loginCookie');
-      console.log('componentDidMount============================================>')
-      console.log('loginCookie', loginCookie)
-      if(loginCookie) {
-        this.setState({
-          cookie: loginCookie,
-          loginCookie
-        }, () => {
-          localStorage.setItem('loginCookie', this.state.loginCookie)
-        })
-      }
-      const { electronAPI } = window
-      electronAPI.updateCookie(loginCookie)
+    // 恢复cookie
+    this.recoverCookie()
   }
 
+  // 恢复cookie
+  recoverCookie = () => {
+    const loginCookie = localStorage.getItem('loginCookie');
+    if(loginCookie) {
+      this.setState({
+        cookie: loginCookie,
+        loginCookie
+      }, () => {
+        localStorage.setItem('loginCookie', this.state.loginCookie)
+      })
+    }
+    const { electronAPI } = window
+    electronAPI.updateCookie(loginCookie)
+  }
+
+  // 查询
   query = async () => {
     try {
       const {excelData = {}} = this.state
@@ -65,9 +66,9 @@ class App extends React.Component {
         loadingTable: true
       })
       const { electronAPI } = window
+      // 获取node查询的结果
       const res = await electronAPI.search() || {}
       let {excelArr = [], notResultArr = []} = res
-      console.log('batch query res', res)
 
       notResultArr = notResultArr.map(item => {
         return {
@@ -76,12 +77,10 @@ class App extends React.Component {
         }
       })
   
-      // const {head = [], data = []} = res
       const head = excelArr.shift() || []
       const data = excelArr
   
-      console.log('batch query split', {head, data})
-  
+      // 拼接表头信息
       let columns = head.map(item => {
         return {
           title: item,
@@ -90,6 +89,7 @@ class App extends React.Component {
         }
       })
   
+      // 拼接数据源
       let dataSource = data.map((itemArr, i) => {
         const obj = {}
         itemArr.forEach((item, j) => {
@@ -116,8 +116,6 @@ class App extends React.Component {
         })
         return obj
       })
-  
-      console.log({columns, dataSource})
       this.setState({
         columns,
         dataSource,
@@ -139,16 +137,16 @@ class App extends React.Component {
 
   }
 
+  // 读取excel
   readExcel = async () => {
-    console.log('readExcel')
     const { electronAPI } = window
     const res = await electronAPI.readExcel()
-    console.log('readExcel', res)
     this.setState({
       excelData: res
     })
   }
 
+  // 导出excel
   exportExcel = async () => {
     const {columns, dataSource} = this.state
     let head = []
@@ -163,7 +161,7 @@ class App extends React.Component {
       }
       excelArr.push(data)
     })
-    console.log('excelArr', excelArr)
+
     const { electronAPI } = window
     const res = await electronAPI.exportExcel(excelArr).then(res => {
       message.success('导出成功，请在电脑桌面查看【查询结果.xlsx】文件')
@@ -172,12 +170,14 @@ class App extends React.Component {
     })
   }
 
+  // 切换显示cookie输入框
   toggleCookieBox = () => {
     this.setState({
       updateCookie: !this.state.updateCookie
     })
   }
 
+  // 保存cookie
   saveCookie = () => {
     if(this.state.cookie.length === 0) {
       message.warning('请输入cookie')
@@ -197,7 +197,6 @@ class App extends React.Component {
   }
 
   onInput = e => {
-    console.log('onInput', e);
     this.setState({
       cookie: e.target.value
     })
@@ -205,7 +204,7 @@ class App extends React.Component {
 
   render() {
     const {dataSource, columns, excelData, loadingTable, searchOk, updateCookie, notResultArr, notResultArrHead} = this.state
-    console.log('render', {columns, dataSource})
+
     return <div className="page">
       <div className="title-bar">
         <h1>核酸一键批量查询</h1>

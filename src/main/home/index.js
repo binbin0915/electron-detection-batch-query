@@ -1,33 +1,37 @@
 const {search} = require('./apis')
 const cheerio = require('cheerio')
 
-console.log('main->home')
 const {ipcMain, dialog} = require('electron');
 
+// 保存全局数据
 let state = {
+  // 读取的excel数据
   excelData: {
-    phoneArr: [],
-    idNumArr: []
+    phoneArr: [], // 手机号码数组
+    idNumArr: [] // 证件号数组
   },
-  excelArr: [],
-  loginCookie: ''
+  excelArr: [], // 准备导出的excel数据
+  loginCookie: '' // 登录信息
 }
 
-// 将table的数据转成二维数组
+// 将table的数据转成二维数组，解析出单元格数据
 function tableToArr(table = '') {
   const $ = cheerio.load(table);
   const trs = $('#reportTable').find('tr')
   const headArr = []
   const dataArr = []
 
+  // 遍历tr
   trs.map((i, tr) => {
     const ths = $(tr).find('th')
+    // 获取表头
     if(ths) {
       ths.map((ith, th) => {
         headArr.push($(th).text())
       })
     }
 
+    // 获取单元格数据
     const tds = $(tr).find('td')
     if(tds) {
       const tdArr = []
@@ -37,19 +41,19 @@ function tableToArr(table = '') {
       tdArr.length && dataArr.push(tdArr)
     }
   })
+  // 返回表头数组和单元格数组的数据
   const res = {head: headArr, data: dataArr}
   return res
 }
 
-// 处理html
+// 获取table的字符串
 function getTableStr(str = '') {
   const $ = cheerio.load(str);
   $('#reportTable').attr('style', 'width: max-content;')
   $('#reportTable').attr('border', '1')
   $('#reportTable').attr('class', '')
   const res = $('div.panel-body-xscroll').html();
-  // console.log('getTableStr', res)
-
+  // 获取table的字符串
   return res;
 }
 
@@ -61,17 +65,11 @@ function readExcel(path = '') {
   const phoneArr = []
   const idNumArr = []
   data.forEach(item => {
-    // console.log('data.item', item)
-    // phoneArr.push(item[0])
-    // idNumArr.push(item[1])
     idNumArr.push(item[0])
     phoneArr.push(item[1])
   })
-  // phoneArr.shift()
-
-  idNumArr.shift()
-  phoneArr.shift()
-  // console.log(phoneArr, idNumArr, data)
+  idNumArr.shift() // 去除excel表头
+  phoneArr.shift() // 去除excel表头
   return {phoneArr, idNumArr}
 }
 
@@ -80,8 +78,9 @@ async function batchQuery() {
   try {
     console.log('查询中，请稍候...')
     const {idNumArr, phoneArr} = state.excelData
-    const tableHTMLArr = []
-    const notResultArr = []
+    const tableHTMLArr = [] // table字符串数组
+    const notResultArr = [] // 未查询到结果的数据
+    // 循环查询结果，先查证件号，再查手机号，手机table字符串
     for(let i = 0; i < idNumArr.length; i++) {
       let res = await search({identityNumber: idNumArr[i], loginCookie: state.loginCookie})
       let tableHtml = getTableStr(res)
@@ -89,6 +88,7 @@ async function batchQuery() {
       const $ = cheerio.load(tableHtml);
       const tds = $('#reportTable').find('td')
       console.log('证件号查询结果为空，查手机号' + phoneArr[i])
+      
       if(tds.length === 0) { // 证件号查询为空，查手机号
         const phoneNum = state.excelData.phoneArr[i]
         if (phoneNum) {
@@ -96,7 +96,7 @@ async function batchQuery() {
           tableHtml = getTableStr(res)
           const $ = cheerio.load(tableHtml);
           const tds = $('#reportTable').find('td')
-          // 手机号码也没查到数据
+          // 手机号码也没查到数据，将没有查到信息的数据保存起来，提示用户手动查询确认
           if(tds.length === 0) {
             notResultArr.push([idNumArr[i], phoneNum])
           }
@@ -106,22 +106,22 @@ async function batchQuery() {
     }
 
     const excelArr = []
+    // 遍历table字符串，解析出单元格数据
     tableHTMLArr.forEach((tableStr, i) => {
-      const arrObj = tableToArr(tableStr)
+      const arrObj = tableToArr(tableStr) // 解析出单元格数据
+      // 拼接表头数据
       if(i === 0) {
         excelArr.push([...arrObj.head])
       }
 
+      // 拼接表的数据
       let data = arrObj.data || []
-      // 数据去重
-      // let clearDuplicate = (arr, key) => Array.from(new Set(arr.map(e => e[key]))).map(e => arr.findIndex(x => x[key] == e)).map(e => arr[e])
-      // data = clearDuplicate(data, '证件号码')
       data.forEach(item => {
         excelArr.push(item)
       })
     })
+    // 返回excel二维数组和未查询到的信息
     return {excelArr, notResultArr}
-    // writeExcel(excelArr)
   } catch (error) {
     console.error('查询中失败，请重试', error)
   }
@@ -147,51 +147,48 @@ function writeExcel(arr = []) {
   })
 }
 
+// 重置全局状态
 function resetState() {
   state = {
     excelData: {
       phoneArr: [],
       idNumArr: []
     },
-    excelArr: []
+    excelArr: [],
+    loginCookie: ''
   }
 }
 
 function registerEvent() {
-  console.log('============> registerEvent')
+  // 监听 查询 消息
   ipcMain.handle('request:search', async () => {
-    console.log('ipcMain search', state.excelData)
     const res = await batchQuery()
     state.excelArr = res.excelArr
     state.notResultArr = res.notResultArr
-    // console.log('===========> ipcMain search', res)
     return res
   })
 
+  // 监听 读取excel 消息
   ipcMain.handle('file:readExcel', async () => {
-    console.log('ipcMain readExcel')
     const { canceled, filePaths } = await dialog.showOpenDialog()
     if (canceled) {
       resetState()
       return state.excelData
     } else {
-      // return filePaths[0]
       const path = filePaths[0]
-      console.log('path', path)
       const excelData = readExcel(path)
-      console.log('excelData', excelData)
       state.excelData = excelData
       return excelData
     }
   })
 
+  // 监听 导出excel 消息
   ipcMain.on('file:exportExcel', async (event, val) => {
-    console.log('ipcMain exportExcel', val)
     return await writeExcel(val)
   })
 
+  // 监听 登录cookie 消息
   ipcMain.on('login:cookie', async (event, val) => {
-    console.log('ipcMain login:cookie', val)
     state.loginCookie = val
   })
 

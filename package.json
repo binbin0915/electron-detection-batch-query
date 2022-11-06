@@ -1,7 +1,7 @@
 {
-  "name": "my-electron-app",
+  "name": "electron-batch-query",
   "version": "1.0.0",
-  "description": "my first electron app.",
+  "description": "batch query electron app.",
   "main": "./src/index.js",
   "homepage": ".",
   "scripts": {
@@ -10,6 +10,7 @@
     "electron:start": "electron-forge start",
     "dev": "webpack && npm run electron:start",
     "serve": "webpack && webpack serve -o './dist/' && npm start",
+    "build": "webpack",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "serve:react": "webpack serve"
